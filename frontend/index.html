@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="style.css" />
-<script src="https://unpkg.com/vis-network@9.1.9/standalone/umd/vis-network.min.js"></script>
+<script src="https://unpkg.com/3d-force-graph@1.73.4/dist/3d-force-graph.min.js"></script>
 </head>
 <body>
 
@@ -79,7 +79,10 @@
           <span class="legend-item"><i class="dot dot-unknown"></i>unknown</span>
         </div>
       </div>
-      <div id="graph"></div>
+      <div class="graph-wrap">
+        <div id="graph"></div>
+        <span class="graph-hint">drag to rotate · scroll to zoom</span>
+      </div>
     </div>
   </section>
 

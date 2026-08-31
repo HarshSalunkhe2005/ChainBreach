@@ -12,7 +12,7 @@ from dataclasses import dataclass
 import requests
 
 ESPLORA_BASE = "https://blockstream.info/api"
-REQUEST_TIMEOUT = 6
+REQUEST_TIMEOUT = 4
 MAX_TXS = 20
 
 FIXTURES_DIR = pathlib.Path(__file__).parent / "fixtures"
@@ -66,13 +66,13 @@ def _slim_from_esplora(raw_tx: dict) -> Tx:
     )
 
 
-def _fetch_live(address: str) -> AddressData | None:
+def _fetch_live(address: str, max_txs: int = MAX_TXS) -> AddressData | None:
     try:
         resp = requests.get(
             f"{ESPLORA_BASE}/address/{address}/txs", timeout=REQUEST_TIMEOUT
         )
         resp.raise_for_status()
-        raw_txs = resp.json()[:MAX_TXS]
+        raw_txs = resp.json()[:max_txs]
         return AddressData(
             address=address,
             txs=[_slim_from_esplora(t) for t in raw_txs],
@@ -109,10 +109,12 @@ def list_sample_addresses() -> list[str]:
     return [p.stem for p in FIXTURES_DIR.glob("*.json")]
 
 
-def get_address_data(address: str, force_sample: bool = False) -> AddressData | None:
+def get_address_data(
+    address: str, force_sample: bool = False, max_txs: int = MAX_TXS
+) -> AddressData | None:
     if force_sample:
         return _fetch_fixture(address)
-    live = _fetch_live(address)
+    live = _fetch_live(address, max_txs)
     if live is not None and len(live.txs) > 0:
         return live
     return _fetch_fixture(address)

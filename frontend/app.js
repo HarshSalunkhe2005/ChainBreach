@@ -23,7 +23,7 @@ const batchAnalyzeBtn = document.getElementById("batch-analyze-btn");
 const batchResultsEl = document.getElementById("batch-results");
 const batchTbody = document.getElementById("batch-tbody");
 
-let network = null;
+let graph3d = null;
 
 // ---------- tabs ----------
 
@@ -101,7 +101,7 @@ function renderCandidates(candidates) {
       .slice(0, 5)
       .map(
         (e) => `<div class="evidence-item">
-          ${e.kind.replace("_", " ")} —
+          hop ${e.hop} · ${e.kind.replace("_", " ")} —
           <a href="https://blockstream.info/tx/${e.txid}" target="_blank" rel="noopener">${e.txid.slice(0, 12)}…</a>
           ${e.source ? `· <a href="${e.source}" target="_blank" rel="noopener">source</a>` : ""}
         </div>`
@@ -125,47 +125,79 @@ function renderCandidates(candidates) {
   });
 }
 
+function nodeColor(n) {
+  if (n.role === "target") return "#5b8cff";
+  if (n.role === "vasp") return isRisky(n.category) ? "#ef4444" : "#35d0ba";
+  return "#6b7684";
+}
+
+function nodeSize(n) {
+  if (n.role === "target") return 9;
+  if (n.role === "vasp") return 7;
+  return Math.max(2.5, 5 - (n.hop || 1));
+}
+
+function nodeLabel(n) {
+  const short = `${n.id.slice(0, 8)}…${n.id.slice(-6)}`;
+  if (n.role === "target") return `Target — ${short}`;
+  if (n.role === "vasp") return `${n.label} — ${short}`;
+  return `${short} (hop ${n.hop})`;
+}
+
 function renderGraph(graph) {
-  const nodes = graph.nodes.map((n) => {
-    let color = "#6b7684";
-    let size = 14;
-    let label = `${n.id.slice(0, 6)}…${n.id.slice(-4)}`;
-
-    if (n.role === "target") {
-      color = "#5b8cff";
-      size = 22;
-    } else if (n.role === "vasp") {
-      color = isRisky(n.category) ? "#ef4444" : "#35d0ba";
-      size = 20;
-      label = n.label;
-    }
-
-    return { id: n.id, label, color, shape: "dot", size, font: { color: "#e7ecf3", face: "IBM Plex Sans" } };
-  });
-
-  const edges = graph.edges.map((e) => ({
-    from: e.source,
-    to: e.target,
-    arrows: "to",
-    color: { color: "#2b3549" },
-    title: e.kind,
+  const nodes = graph.nodes.map((n) => ({
+    id: n.id,
+    role: n.role,
+    label: n.label,
+    category: n.category,
+    hop: n.hop,
   }));
 
-  const data = { nodes: new vis.DataSet(nodes), edges: new vis.DataSet(edges) };
-  const options = {
-    physics: {
-      stabilization: { iterations: 150, fit: true },
-      barnesHut: { gravitationalConstant: -4000 },
-    },
-    interaction: { hover: true },
-  };
+  const links = graph.edges.map((e) => ({
+    source: e.source,
+    target: e.target,
+    kind: e.kind,
+    hop: e.hop,
+  }));
 
-  if (network) network.destroy();
-  network = new vis.Network(graphEl, data, options);
-  network.once("stabilizationIterationsDone", () => {
-    network.setOptions({ physics: false });
-  });
+  if (!graph3d) {
+    graph3d = ForceGraph3D()(graphEl)
+      .backgroundColor("#0a0e14")
+      .nodeLabel(nodeLabel)
+      .nodeColor(nodeColor)
+      .nodeVal(nodeSize)
+      .nodeOpacity(0.95)
+      .linkCurvature(0.28)
+      .linkWidth((l) => (l.hop === 1 ? 1.1 : 0.6))
+      .linkColor((l) => {
+        const t = typeof l.target === "object" ? l.target : null;
+        if (t && t.role === "vasp") {
+          return isRisky(t.category) ? "rgba(239,68,68,0.6)" : "rgba(53,208,186,0.55)";
+        }
+        return "rgba(91,140,255,0.22)";
+      })
+      .linkDirectionalArrowLength(3)
+      .linkDirectionalArrowRelPos(1)
+      .showNavInfo(false);
+  }
+
+  const enableParticles = links.length <= 80;
+  graph3d
+    .width(graphEl.clientWidth)
+    .height(graphEl.clientHeight)
+    .linkDirectionalParticles(enableParticles ? 2 : 0)
+    .linkDirectionalParticleWidth(1.4)
+    .linkDirectionalParticleSpeed(0.006)
+    .graphData({ nodes, links });
+
+  graph3d.onEngineStop(() => graph3d.zoomToFit(400, 60));
 }
+
+window.addEventListener("resize", () => {
+  if (graph3d && !resultsEl.hidden) {
+    graph3d.width(graphEl.clientWidth).height(graphEl.clientHeight);
+  }
+});
 
 async function runAnalysis() {
   const address = input.value.trim();
@@ -188,10 +220,10 @@ async function runAnalysis() {
     }
 
     const result = await res.json();
-    statusEl.textContent = `Data source: ${result.data_source} · ${result.tx_count_analyzed} transaction(s) analyzed`;
+    statusEl.textContent = `Data source: ${result.data_source} · ${result.tx_count_analyzed} transaction(s) on target · traced ${result.addresses_traced} address(es) across ${result.hops} hop(s)`;
     renderCandidates(result.candidates);
-    renderGraph(result.graph);
     resultsEl.hidden = false;
+    renderGraph(result.graph);
   } catch (e) {
     statusEl.textContent = `Error: ${e.message}`;
   } finally {

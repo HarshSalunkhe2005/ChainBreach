@@ -295,6 +295,7 @@ button {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 20px;
+  min-width: 0;
 }
 
 .results h2 {
@@ -308,8 +309,10 @@ button {
 
 .graph-header {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
+  gap: 6px 12px;
   margin-bottom: 14px;
 }
 
@@ -317,7 +320,8 @@ button {
 
 .legend {
   display: flex;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 6px 12px;
   font-size: 0.72rem;
   color: var(--text-faint);
 }
@@ -330,11 +334,29 @@ button {
 .dot-risk { background: var(--risk); }
 .dot-unknown { background: var(--low); }
 
+.graph-wrap {
+  position: relative;
+}
+
 #graph {
-  height: 420px;
+  height: 480px;
   border-radius: 8px;
   background: var(--bg);
   border: 1px solid var(--border);
+  overflow: hidden;
+  cursor: grab;
+}
+
+#graph:active { cursor: grabbing; }
+
+.graph-hint {
+  position: absolute;
+  bottom: 10px;
+  right: 14px;
+  font-size: 0.68rem;
+  color: var(--text-faint);
+  pointer-events: none;
+  z-index: 1;
 }
 
 .candidate-card {

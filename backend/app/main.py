@@ -6,8 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-import bitcoin_client
-import clustering
+import trace as trace_mod
 from attribution import _TAGS, attribute
 
 app = FastAPI(title="ChainBreach Wallet Attribution API")
@@ -39,15 +38,16 @@ class BatchAttributeRequest(BaseModel):
     force_sample: bool = False
 
 
-def run_attribution(address: str, force_sample: bool) -> dict:
-    data = bitcoin_client.get_address_data(address, force_sample=force_sample)
-    if data is None:
+def run_attribution(address: str, force_sample: bool, max_hops: int = trace_mod.MAX_HOPS) -> dict:
+    trace_result = trace_mod.trace(address, force_sample, _TAGS, max_hops=max_hops)
+    if trace_result.target_source is None:
         raise ValueError("no transaction data available (live lookup failed and no sample exists)")
 
-    relations = clustering.find_relations(address, data.txs)
-    result = attribute(address, relations)
-    result["data_source"] = data.source
-    result["tx_count_analyzed"] = len(data.txs)
+    result = attribute(address, trace_result.relations)
+    result["data_source"] = trace_result.target_source
+    result["tx_count_analyzed"] = trace_result.target_tx_count
+    result["addresses_traced"] = trace_result.addresses_traced
+    result["hops"] = max_hops
     return result
 
 
@@ -96,7 +96,7 @@ def post_attribute_batch(req: BatchAttributeRequest):
     results = []
     for address in addresses:
         try:
-            result = run_attribution(address, req.force_sample)
+            result = run_attribution(address, req.force_sample, max_hops=1)
             top = result["candidates"][0] if result["candidates"] else None
             results.append(
                 {
