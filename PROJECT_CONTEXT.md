@@ -25,6 +25,7 @@ I4C wants a system that takes a suspect wallet address reported in a cybercrime 
 - **Design system (standing rule, also in PERMANENT_INSTRUCTIONS.txt):** deliberately avoid the generic "AI-generated" look. Typography: IBM Plex Sans (UI) + IBM Plex Mono (addresses/hashes/data), via Google Fonts. Palette: near-black navy surfaces (`#0a0e14`/`#0f1520`/`#131a27`), one restrained accent (teal `#35d0ba`), red reserved strictly for flagged/illicit-category content, amber for medium confidence. No gradients, no emoji-as-icons, no glow/3D effects — flat, bordered panels with a small geometric SVG brand mark (two interlocking rounded squares, evoking a broken chain link).
 - **Batch upload feature:** `/api/attribute/batch` (POST `{addresses: [...]}`, capped at `MAX_BATCH_SIZE=15`) runs the same fetch→cluster→attribute pipeline per address and returns a results array (top candidate + confidence per address). Frontend has a tabbed UI (Single Address / Batch Upload) with drag-and-drop file upload or a paste-in textarea, rendered as a results table.
 - **`/api/stats`** exposes dataset size (tagged address count, distinct actors, category breakdown) — shown as a badge in the top bar so the "more data" story is visible at a glance, not just claimed in the pitch.
+- **Deployed on Vercel:** live at https://chain-breach.vercel.app. `api/index.py` is the serverless entrypoint (`sys.path` trick to import the same `backend/app/main.py` FastAPI app unmodified); `vercel.json` routes `/api/*` to the function and everything else to `frontend/` as static files, with `includeFiles: "backend/**"` so the tag database/fixtures get bundled into the function. Connected via the Vercel dashboard's GitHub import (auto-deploys on every push to `main`) — user's choice over CLI+token, to keep the deploy step outside anything requiring a shared credential.
 
 ## Demo addresses (bundled as fixtures + sample buttons in the UI)
 
@@ -39,8 +40,10 @@ I4C wants a system that takes a suspect wallet address reported in a cybercrime 
 - [x] Redesigned frontend: new design system (see above), tabbed single/batch UI, dataset stats badge, risk-flag badges on illicit-category matches — verified in browser (single address, batch upload, both demo fixtures).
 - [x] Batch upload endpoint + UI — verified end-to-end with real addresses.
 - [x] Expanded VASP tag dataset from ~440 to 8,435 addresses.
-- [x] PPT content drafted for internal round, matching the official SIT/SIH 6-slide template exactly (title, idea, technical approach, feasibility, impact, references) — given directly to the user, not stored in this repo.
-- [ ] README polish to reflect the new frontend/batch feature (still describes the old single-page UI).
+- [x] PPT content drafted for internal round, matching the official SIT/SIH 6-slide template exactly (title, idea, technical approach, feasibility, impact, references) — given directly to the user, not stored in this repo. Deck itself has been built by a teammate.
+- [x] Deployed to Vercel and verified live: single-address lookup, batch endpoint (mixed valid/invalid input), `/api/stats`, garbage-address handling (clean 404, no crash) — all confirmed working against the actual production deployment, not just localhost.
+- [x] Fixed a real bug found only on the live deploy: `.results { display: grid }` in CSS had higher effective priority than the `[hidden]` attribute (same specificity, later in source order), so the empty candidates/graph panel showed on every page load before any analysis ran. Fixed with a global `[hidden] { display: none !important; }` rule. `.batch-results` didn't have this bug (no competing `display` rule on it) but the global fix covers it too for safety.
+- [x] README polish: added live demo link, `api/`/`vercel.json` to the layout diagram, corrected address count.
 
 ## Known tooling quirk (not a product bug)
 
@@ -50,3 +53,5 @@ The Browser-pane screenshot tool intermittently returns solid-black frames after
 
 - Decide whether to add a second chain (Ethereum) if time allows post-PPT — architecture supports it, heuristics would differ (account model, not UTXO).
 - Confirm final pitch framing: position as a focused, working piece of I4C's real CIAT initiative rather than a from-scratch concept.
+- **Demo script not written yet** — deliberately deferred by the user ("later"). Needed before the actual pitch: a 2-3 min walkthrough script (what to click, in what order, what to say while it loads) for the internal round.
+- Outside this repo entirely: the college SPOC must separately submit an Internal Hackathon Report to the SIH portal (event overview, photos, jury details, participant counts, max 15 pages) per the official SIH 2026 Guidelines — not something this project can help with directly, just flagging it's a real, separate requirement.

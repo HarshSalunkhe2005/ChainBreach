@@ -2,6 +2,8 @@
 
 Automated attribution of unknown cryptocurrency wallets to the nearest Virtual Asset Service Provider (VASP), built for SIH problem statement **SIH26182** (Ministry of Home Affairs / I4C).
 
+**Live demo:** [chain-breach.vercel.app](https://chain-breach.vercel.app)
+
 Given a suspect wallet address, the tool traces its transaction graph, applies established blockchain-forensics heuristics to find counterparties, and checks those counterparties against a database of known VASP (exchange) addresses — returning a confidence-scored list of candidate VASPs with the on-chain evidence behind each one.
 
 ## How it works
@@ -11,7 +13,7 @@ Given a suspect wallet address, the tool traces its transaction graph, applies e
    - *Common-input-ownership*: addresses spent together in the same transaction as the target are (almost always) controlled by the same wallet.
    - *Direct counterparty*: addresses the target sent funds to, or received funds from, in a single hop — this is what "deposit address" attribution relies on.
    - High fan-out transactions (batched exchange sweeps with dozens of inputs/outputs) are excluded from both, to avoid the classic "super-cluster" failure mode.
-3. **Attribute** — check every related address against a database of 8,000+ known VASP/illicit-entity addresses (sourced from GraphSense's public, MIT-licensed TagPacks), and score each matching VASP by the strength and count of evidence. Matches in high-risk categories (ransomware, darknet markets, mixers, sanctions) are flagged separately from ordinary exchange matches.
+3. **Attribute** — check every related address against a database of 8,400+ known VASP/illicit-entity addresses (sourced from GraphSense's public, MIT-licensed TagPacks), and score each matching VASP by the strength and count of evidence. Matches in high-risk categories (ransomware, darknet markets, mixers, sanctions) are flagged separately from ordinary exchange matches.
 4. **Report** — return ranked candidates with confidence bands (high / medium / low), the evidence trail (transaction IDs + source citations), and a graph for visual inspection.
 
 Addresses can be analyzed one at a time or in a batch (paste/upload up to 15 at once) via the tabbed UI. `/api/stats` exposes live dataset size.
@@ -38,6 +40,8 @@ backend/app/
   tagdata/          VASP address tag database (built from GraphSense TagPacks)
   fixtures/         cached real transactions for offline demo
 frontend/           single-page UI (vanilla JS + vis-network graph, single/batch tabs)
+api/index.py         Vercel serverless entrypoint (wraps the same FastAPI app)
+vercel.json           Vercel routing: /api/* -> function, everything else -> frontend/
 ```
 
 ## Scope for this prototype
