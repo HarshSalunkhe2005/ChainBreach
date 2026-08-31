@@ -4,22 +4,63 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>ChainBreach — Wallet Attribution</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="style.css" />
 <script src="https://unpkg.com/vis-network@9.1.9/standalone/umd/vis-network.min.js"></script>
 </head>
 <body>
-<header>
-  <h1>ChainBreach</h1>
-  <p class="subtitle">Automated attribution of unknown wallets to Virtual Asset Service Providers</p>
+
+<header class="topbar">
+  <div class="brand">
+    <svg class="brand-mark" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="4" y="4" width="14" height="14" rx="3" stroke="currentColor" stroke-width="2.4"/>
+      <rect x="14" y="14" width="14" height="14" rx="3" stroke="currentColor" stroke-width="2.4" class="brand-mark-accent"/>
+    </svg>
+    <span class="brand-name">ChainBreach</span>
+  </div>
+  <div class="topbar-right">
+    <span class="topbar-stat" id="topbar-stats">loading dataset…</span>
+  </div>
 </header>
 
 <main>
+  <section class="hero">
+    <h1>Wallet → VASP Attribution</h1>
+    <p class="hero-sub">Trace a suspect Bitcoin wallet to the exchange it's tied to — with confidence scoring and cited on-chain evidence, not a black-box guess.</p>
+  </section>
+
   <section class="query-panel">
-    <div class="input-row">
-      <input id="address-input" type="text" placeholder="Enter a Bitcoin address (e.g. 1KVUqmhw1X5AEXcKSFcDrkzVsApebVNjqA)" />
-      <button id="analyze-btn">Analyze</button>
+    <div class="tabs" role="tablist">
+      <button class="tab active" data-tab="single" type="button">Single Address</button>
+      <button class="tab" data-tab="batch" type="button">Batch Upload</button>
     </div>
-    <div class="samples" id="samples"></div>
+
+    <div class="tab-panel" data-panel="single">
+      <div class="input-row">
+        <input id="address-input" type="text" placeholder="Enter a Bitcoin address" spellcheck="false" />
+        <button id="analyze-btn" type="button">Analyze</button>
+      </div>
+      <div class="samples" id="samples"></div>
+    </div>
+
+    <div class="tab-panel" data-panel="batch" hidden>
+      <div class="upload-area" id="upload-area">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M12 16V4M12 4l-4 4M12 4l4 4" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div class="upload-text">
+          <strong>Drop a CSV/TXT file</strong> of suspect addresses, or paste them below
+        </div>
+        <button id="browse-btn" type="button">Choose file</button>
+        <input type="file" id="file-input" accept=".csv,.txt" hidden />
+      </div>
+      <textarea id="batch-textarea" placeholder="one address per line — up to 15 per batch"></textarea>
+      <button id="batch-analyze-btn" type="button">Analyze batch</button>
+    </div>
+
     <p class="status" id="status"></p>
   </section>
 
@@ -29,11 +70,35 @@
       <div id="candidate-list"></div>
     </div>
     <div class="results-right">
-      <h2>Transaction graph</h2>
+      <div class="graph-header">
+        <h2>Transaction graph</h2>
+        <div class="legend">
+          <span class="legend-item"><i class="dot dot-target"></i>target</span>
+          <span class="legend-item"><i class="dot dot-vasp"></i>VASP match</span>
+          <span class="legend-item"><i class="dot dot-risk"></i>flagged</span>
+          <span class="legend-item"><i class="dot dot-unknown"></i>unknown</span>
+        </div>
+      </div>
       <div id="graph"></div>
     </div>
   </section>
+
+  <section class="batch-results" id="batch-results" hidden>
+    <h2>Batch results</h2>
+    <div class="table-wrap">
+      <table id="batch-table">
+        <thead>
+          <tr><th>Address</th><th>Source</th><th>Txs</th><th>Top match</th><th>Confidence</th></tr>
+        </thead>
+        <tbody id="batch-tbody"></tbody>
+      </table>
+    </div>
+  </section>
 </main>
+
+<footer>
+  Built on public blockchain data — <a href="https://github.com/graphsense/graphsense-tagpacks" target="_blank" rel="noopener">GraphSense TagPacks</a> · <a href="https://blockstream.info/api/" target="_blank" rel="noopener">Blockstream Esplora API</a>
+</footer>
 
 <script src="app.js"></script>
 </body>

@@ -24,7 +24,7 @@ def main():
         pack = load_pack(path)
         pack_currency = pack.get("currency")
         pack_actor = pack.get("actor")
-        pack_category = pack.get("category")
+        pack_category = pack.get("category") or pack.get("abuse")
         pack_source = pack.get("source")
 
         for tag in pack.get("tags", []):
@@ -32,10 +32,11 @@ def main():
             if currency != "BTC":
                 continue
             address = tag["address"]
+            category = tag.get("category") or tag.get("abuse") or pack_category
             tags[address] = {
                 "label": tag.get("label", pack.get("title", "")),
                 "actor": tag.get("actor", pack_actor),
-                "category": tag.get("category", pack_category),
+                "category": category,
                 "source": tag.get("source", pack_source),
             }
 

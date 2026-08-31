@@ -74,6 +74,7 @@ def attribute(target: str, relations: list[Relation]) -> dict:
             "role": "vasp",
             "label": tag["label"],
             "actor": tag["actor"],
+            "category": tag.get("category"),
         }
 
         actor = tag["actor"] or tag["label"]

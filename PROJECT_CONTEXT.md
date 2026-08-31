@@ -17,10 +17,14 @@ I4C wants a system that takes a suspect wallet address reported in a cybercrime 
 
 - **Scope for internal round: Bitcoin only.** Full problem statement asks for multi-chain; not feasible solo in ~2 days. Architecture (fetch → cluster → attribute) is designed to extend to account-based chains later — pitch this as the roadmap, not a gap.
 - **Data strategy: hybrid.** Live calls to Blockstream's public Esplora API as primary path; falls back automatically to bundled real-transaction fixtures if the live call fails, so the demo never breaks on stage.
-- **VASP tag database: GraphSense TagPacks.** Public, MIT-licensed dataset (github.com/graphsense/graphsense-tagpacks). Converted the BTC-relevant entries (~440 addresses across exchanges, mixers, gambling/darknet services) into a flat `tagdata/vasp_tags.json` via `tagdata/build_tags.py`. Real, citable, no API key needed.
+- **VASP tag database: GraphSense TagPacks.** Public, MIT-licensed dataset (github.com/graphsense/graphsense-tagpacks). Converted the BTC-relevant entries into a flat `tagdata/vasp_tags.json` via `tagdata/build_tags.py`. Real, citable, no API key needed. Now at **8,435 addresses** (177 exchanges, plus ransomware/darknet-market/mixer/sanctions categories via the `abuse` field fallback) — up from an initial ~440 exchange-only subset. `raw/samourai.yaml` (36k uncategorized coinjoin-participant addresses, low individual value) deliberately excluded to keep the dataset lean; more GraphSense pack files exist upstream (`raw/all_urls.txt`-style full pull) but downloading them hit intermittent rate-limiting from raw.githubusercontent.com — single sequential requests work fine, tight loops don't. Revisit if more coverage is wanted later.
+- **Risk categorization:** candidate/graph nodes whose tag category is in `{ransomware, market, mixing_service, extremism, service_hack, coinjoin}` get a red "flagged" badge in the UI, separate from the confidence score — lets the tool surface "this links to a known-illicit entity" distinctly from "this links to a legitimate exchange."
 - **Heuristics implemented:** common-input-ownership (co-spend) clustering, and direct-counterparty (deposit/withdrawal) matching. High fan-out transactions (>25 inputs or outputs — batched exchange sweeps) are excluded from both to avoid the "super-cluster" explosion problem known in blockchain forensics.
 - **Stack:** Python/FastAPI backend, vanilla JS frontend with vis-network for the graph. Single process serves both API and static frontend (`uvicorn main:app`) — simplest possible run story for judges.
-- **Repo hygiene (standing rule, also in `C:\Users\Harsh\Projects\PERMANENT_INSTRUCTIONS.txt`):** no AI/Claude/Anthropic mentions anywhere in this repo; commits pushed via a separate scoped GitHub token (not tied to any AI tool), to be revoked after submission.
+- **Repo hygiene (standing rule, also in `C:\Users\Harsh\Projects\PERMANENT_INSTRUCTIONS.txt`):** no AI/Claude/Anthropic mentions anywhere in this repo; commits pushed via GitHub Credential Manager under the `HarshSalunkhe2005` account (switched from a scoped-PAT + plaintext `git-credential-store` approach after the original PAT turned out to belong to the wrong GitHub account).
+- **Design system (standing rule, also in PERMANENT_INSTRUCTIONS.txt):** deliberately avoid the generic "AI-generated" look. Typography: IBM Plex Sans (UI) + IBM Plex Mono (addresses/hashes/data), via Google Fonts. Palette: near-black navy surfaces (`#0a0e14`/`#0f1520`/`#131a27`), one restrained accent (teal `#35d0ba`), red reserved strictly for flagged/illicit-category content, amber for medium confidence. No gradients, no emoji-as-icons, no glow/3D effects — flat, bordered panels with a small geometric SVG brand mark (two interlocking rounded squares, evoking a broken chain link).
+- **Batch upload feature:** `/api/attribute/batch` (POST `{addresses: [...]}`, capped at `MAX_BATCH_SIZE=15`) runs the same fetch→cluster→attribute pipeline per address and returns a results array (top candidate + confidence per address). Frontend has a tabbed UI (Single Address / Batch Upload) with drag-and-drop file upload or a paste-in textarea, rendered as a results table.
+- **`/api/stats`** exposes dataset size (tagged address count, distinct actors, category breakdown) — shown as a badge in the top bar so the "more data" story is visible at a glance, not just claimed in the pitch.
 
 ## Demo addresses (bundled as fixtures + sample buttons in the UI)
 
@@ -32,8 +36,15 @@ I4C wants a system that takes a suspect wallet address reported in a cybercrime 
 - [x] Backend: fetch, cluster, attribute, API — working end-to-end, verified against both live API and offline fixtures.
 - [x] Frontend: address input, sample-address shortcuts, candidate list with evidence + source links, transaction graph visualization — verified in browser.
 - [x] Fixed a bug where high-fan-out transactions (exchange batch sweeps, one with 501 outputs) blew up the graph to 1700+ nodes; capped via `MAX_FANOUT` in `clustering.py`.
-- [ ] PPT content for internal round — not started yet.
-- [ ] README/context polish as prototype evolves.
+- [x] Redesigned frontend: new design system (see above), tabbed single/batch UI, dataset stats badge, risk-flag badges on illicit-category matches — verified in browser (single address, batch upload, both demo fixtures).
+- [x] Batch upload endpoint + UI — verified end-to-end with real addresses.
+- [x] Expanded VASP tag dataset from ~440 to 8,435 addresses.
+- [x] PPT content drafted for internal round, matching the official SIT/SIH 6-slide template exactly (title, idea, technical approach, feasibility, impact, references) — given directly to the user, not stored in this repo.
+- [ ] README polish to reflect the new frontend/batch feature (still describes the old single-page UI).
+
+## Known tooling quirk (not a product bug)
+
+The Browser-pane screenshot tool intermittently returns solid-black frames after scrolling on this page, seemingly tied to the vis-network canvas + scroll state, even though the underlying DOM/canvas content is provably correct (verified via direct pixel sampling and DOM inspection). Reloading the page or resizing the viewport clears it. Don't mistake a black screenshot for the graph being broken — check console errors and pixel/DOM state before assuming a real bug.
 
 ## Open questions / next steps
 
