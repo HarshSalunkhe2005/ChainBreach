@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ChainBreach — Wallet Attribution</title>
+<link rel="stylesheet" href="style.css" />
+<script src="https://unpkg.com/vis-network@9.1.9/standalone/umd/vis-network.min.js"></script>
+</head>
+<body>
+<header>
+  <h1>ChainBreach</h1>
+  <p class="subtitle">Automated attribution of unknown wallets to Virtual Asset Service Providers</p>
+</header>
+
+<main>
+  <section class="query-panel">
+    <div class="input-row">
+      <input id="address-input" type="text" placeholder="Enter a Bitcoin address (e.g. 1KVUqmhw1X5AEXcKSFcDrkzVsApebVNjqA)" />
+      <button id="analyze-btn">Analyze</button>
+    </div>
+    <div class="samples" id="samples"></div>
+    <p class="status" id="status"></p>
+  </section>
+
+  <section class="results" id="results" hidden>
+    <div class="results-left">
+      <h2>Attribution candidates</h2>
+      <div id="candidate-list"></div>
+    </div>
+    <div class="results-right">
+      <h2>Transaction graph</h2>
+      <div id="graph"></div>
+    </div>
+  </section>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
