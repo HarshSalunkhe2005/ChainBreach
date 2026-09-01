@@ -16,12 +16,15 @@ from dataclasses import dataclass
 
 import bitcoin_client
 import clustering
+import ethereum_client
 
 MAX_HOPS = 2
 MAX_EXPANSIONS = 4
 MAX_WORKERS = 6
 HOP1_MAX_TXS = 20
 DEEPER_MAX_TXS = 10
+
+CLIENTS = {"btc": bitcoin_client, "eth": ethereum_client}
 
 
 @dataclass
@@ -39,7 +42,16 @@ class TraceResult:
     addresses_traced: int
 
 
-def trace(target: str, force_sample: bool, tags: dict, max_hops: int = MAX_HOPS) -> TraceResult:
+def trace(
+    target: str,
+    force_sample: bool,
+    tags: dict,
+    max_hops: int = MAX_HOPS,
+    chain: str = "btc",
+) -> TraceResult:
+    client = CLIENTS[chain]
+    if chain == "eth":
+        target = target.lower()
     visited = {target}
     frontier = [target]
     all_relations: list[HopRelation] = []
@@ -55,7 +67,7 @@ def trace(target: str, force_sample: bool, tags: dict, max_hops: int = MAX_HOPS)
         max_txs = HOP1_MAX_TXS if hop == 1 else DEEPER_MAX_TXS
         with cf.ThreadPoolExecutor(max_workers=MAX_WORKERS) as ex:
             future_to_addr = {
-                ex.submit(bitcoin_client.get_address_data, addr, force_sample, max_txs): addr
+                ex.submit(client.get_address_data, addr, force_sample, max_txs): addr
                 for addr in frontier
             }
             results = {}

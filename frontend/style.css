@@ -139,7 +139,39 @@ footer a:hover { color: var(--accent); }
 
 .tabs {
   display: flex;
+  align-items: center;
   border-bottom: 1px solid var(--border);
+  gap: 10px;
+  padding-right: 12px;
+}
+
+.chain-toggle {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.chain-btn {
+  padding: 5px 14px;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-ui);
+  font-size: 0.76rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.chain-btn:hover { color: var(--text); }
+
+.chain-btn.active {
+  background: var(--accent-wash);
+  color: var(--accent);
 }
 
 .tab {

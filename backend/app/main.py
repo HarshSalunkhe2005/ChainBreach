@@ -21,25 +21,38 @@ app.add_middleware(
 FRONTEND_DIR = pathlib.Path(__file__).parent.parent.parent / "frontend"
 
 MAX_BATCH_SIZE = 15
+SUPPORTED_CHAINS = {"btc", "eth"}
 
 SAMPLE_ADDRESSES = {
-    "1KVUqmhw1X5AEXcKSFcDrkzVsApebVNjqA": "Real 2014 deposit into a known exchange (C-Cex.com) — expect a match.",
-    "1BfRMjJsX3154EoDWgXqW9Jf4kzqfKQHnp": "Real wallet with no known VASP counterparties — expect no match.",
+    "btc": {
+        "1KVUqmhw1X5AEXcKSFcDrkzVsApebVNjqA": "Real 2014 deposit into a known exchange (C-Cex.com) — expect a match.",
+        "1BfRMjJsX3154EoDWgXqW9Jf4kzqfKQHnp": "Real wallet with no known VASP counterparties — expect no match.",
+    },
+    "eth": {
+        "0x048f28f1a5cbc3f62f077625808E0e9903fe7706": "Real wallet that deposited into Binance's cold wallet — expect a match.",
+        "0xeA5b5f01e5aC77f132E9135406cE1552bb0C1d43": "Real wallet with no known VASP counterparties — expect no match.",
+    },
 }
 
 
 class AttributeRequest(BaseModel):
     address: str
     force_sample: bool = False
+    chain: str = "btc"
 
 
 class BatchAttributeRequest(BaseModel):
     addresses: list[str]
     force_sample: bool = False
+    chain: str = "btc"
 
 
-def run_attribution(address: str, force_sample: bool, max_hops: int = trace_mod.MAX_HOPS) -> dict:
-    trace_result = trace_mod.trace(address, force_sample, _TAGS, max_hops=max_hops)
+def run_attribution(
+    address: str, force_sample: bool, max_hops: int = trace_mod.MAX_HOPS, chain: str = "btc"
+) -> dict:
+    if chain == "eth":
+        address = address.lower()
+    trace_result = trace_mod.trace(address, force_sample, _TAGS, max_hops=max_hops, chain=chain)
     if trace_result.target_source is None:
         raise ValueError("no transaction data available (live lookup failed and no sample exists)")
 
@@ -48,6 +61,7 @@ def run_attribution(address: str, force_sample: bool, max_hops: int = trace_mod.
     result["tx_count_analyzed"] = trace_result.target_tx_count
     result["addresses_traced"] = trace_result.addresses_traced
     result["hops"] = max_hops
+    result["chain"] = chain
     return result
 
 
@@ -55,18 +69,22 @@ def run_attribution(address: str, force_sample: bool, max_hops: int = trace_mod.
 def get_stats():
     categories = Counter(v.get("category") or "unlabeled" for v in _TAGS.values())
     actors = {v.get("actor") for v in _TAGS.values() if v.get("actor")}
+    by_currency = Counter(v.get("currency") or "unknown" for v in _TAGS.values())
     return {
         "tagged_addresses": len(_TAGS),
         "distinct_actors": len(actors),
         "categories": categories.most_common(),
+        "by_currency": dict(by_currency),
     }
 
 
 @app.get("/api/samples")
-def get_samples():
+def get_samples(chain: str = "btc"):
+    if chain not in SUPPORTED_CHAINS:
+        raise HTTPException(status_code=400, detail=f"unsupported chain: {chain}")
     return [
         {"address": addr, "description": desc}
-        for addr, desc in SAMPLE_ADDRESSES.items()
+        for addr, desc in SAMPLE_ADDRESSES[chain].items()
     ]
 
 
@@ -75,9 +93,11 @@ def post_attribute(req: AttributeRequest):
     address = req.address.strip()
     if not address:
         raise HTTPException(status_code=400, detail="address is required")
+    if req.chain not in SUPPORTED_CHAINS:
+        raise HTTPException(status_code=400, detail=f"unsupported chain: {req.chain}")
 
     try:
-        return run_attribution(address, req.force_sample)
+        return run_attribution(address, req.force_sample, chain=req.chain)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
@@ -92,11 +112,13 @@ def post_attribute_batch(req: BatchAttributeRequest):
             status_code=400,
             detail=f"batch limited to {MAX_BATCH_SIZE} addresses per request (got {len(addresses)})",
         )
+    if req.chain not in SUPPORTED_CHAINS:
+        raise HTTPException(status_code=400, detail=f"unsupported chain: {req.chain}")
 
     results = []
     for address in addresses:
         try:
-            result = run_attribution(address, req.force_sample, max_hops=1)
+            result = run_attribution(address, req.force_sample, max_hops=1, chain=req.chain)
             top = result["candidates"][0] if result["candidates"] else None
             results.append(
                 {

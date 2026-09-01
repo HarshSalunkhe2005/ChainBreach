@@ -24,10 +24,16 @@ const batchResultsEl = document.getElementById("batch-results");
 const batchTbody = document.getElementById("batch-tbody");
 const exportReportBtn = document.getElementById("export-report-btn");
 const reportEl = document.getElementById("report");
+const chainBtns = document.querySelectorAll(".chain-btn");
+const heroSub = document.querySelector(".hero-sub");
+
+const CHAIN_LABELS = { btc: "Bitcoin", eth: "Ethereum" };
+const CHAIN_ARTICLE = { btc: "a", eth: "an" };
 
 let graph3d = null;
 let lastResult = null;
 let lastAddress = null;
+let currentChain = "btc";
 
 // ---------- tabs ----------
 
@@ -42,6 +48,23 @@ tabs.forEach((tab) => {
   });
 });
 
+// ---------- chain toggle ----------
+
+chainBtns.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    if (btn.dataset.chain === currentChain) return;
+    currentChain = btn.dataset.chain;
+    chainBtns.forEach((b) => b.classList.toggle("active", b === btn));
+    input.placeholder = `Enter ${CHAIN_ARTICLE[currentChain]} ${CHAIN_LABELS[currentChain]} address`;
+    input.value = "";
+    heroSub.textContent = `Trace ${CHAIN_ARTICLE[currentChain]} suspect ${CHAIN_LABELS[currentChain]} wallet to the exchange it's tied to — with confidence scoring and cited on-chain evidence, not a black-box guess.`;
+    resultsEl.hidden = true;
+    batchResultsEl.hidden = true;
+    statusEl.textContent = "";
+    loadSamples();
+  });
+});
+
 // ---------- stats ----------
 
 async function loadStats() {
@@ -50,7 +73,8 @@ async function loadStats() {
     const stats = await res.json();
     const exchangeCount =
       (stats.categories.find(([cat]) => cat === "exchange") || [null, 0])[1];
-    topbarStatsEl.textContent = `${stats.tagged_addresses.toLocaleString()} tagged addresses · ${exchangeCount} exchanges · BTC`;
+    const chains = Object.keys(stats.by_currency || {}).join(" + ") || "BTC";
+    topbarStatsEl.textContent = `${stats.tagged_addresses.toLocaleString()} tagged addresses · ${exchangeCount} exchanges · ${chains}`;
   } catch (e) {
     topbarStatsEl.textContent = "dataset unavailable";
   }
@@ -60,7 +84,7 @@ async function loadStats() {
 
 async function loadSamples() {
   try {
-    const res = await fetch(`${API_BASE}/api/samples`);
+    const res = await fetch(`${API_BASE}/api/samples?chain=${currentChain}`);
     const samples = await res.json();
     samplesEl.innerHTML = "";
     samples.forEach((s) => {
@@ -101,12 +125,17 @@ function renderCandidates(candidates) {
     const card = document.createElement("div");
     card.className = "candidate-card";
 
+    const txUrl = (txid) =>
+      currentChain === "eth"
+        ? `https://eth.blockscout.com/tx/${txid}`
+        : `https://blockstream.info/tx/${txid}`;
+
     const evidenceHtml = c.evidence
       .slice(0, 5)
       .map(
         (e) => `<div class="evidence-item">
           hop ${e.hop} · ${e.kind.replace("_", " ")} —
-          <a href="https://blockstream.info/tx/${e.txid}" target="_blank" rel="noopener">${e.txid.slice(0, 12)}…</a>
+          <a href="${txUrl(e.txid)}" target="_blank" rel="noopener">${e.txid.slice(0, 12)}…</a>
           ${e.source ? `· <a href="${e.source}" target="_blank" rel="noopener">source</a>` : ""}
         </div>`
       )
@@ -165,7 +194,7 @@ function renderGraph(graph) {
   }));
 
   if (!graph3d) {
-    graph3d = ForceGraph3D({ rendererConfig: { preserveDrawingBuffer: true } })(graphEl)
+    graph3d = ForceGraph3D()(graphEl)
       .backgroundColor("#0a0e14")
       .nodeLabel(nodeLabel)
       .nodeColor(nodeColor)
@@ -215,7 +244,7 @@ async function runAnalysis() {
     const res = await fetch(`${API_BASE}/api/attribute`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ address }),
+      body: JSON.stringify({ address, chain: currentChain }),
     });
 
     if (!res.ok) {
@@ -323,7 +352,7 @@ batchAnalyzeBtn.addEventListener("click", async () => {
     const res = await fetch(`${API_BASE}/api/attribute/batch`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ addresses }),
+      body: JSON.stringify({ addresses, chain: currentChain }),
     });
 
     if (!res.ok) {
@@ -345,9 +374,11 @@ batchAnalyzeBtn.addEventListener("click", async () => {
 
 function captureGraphImage() {
   try {
-    const canvas = graphEl.querySelector("canvas");
-    if (!canvas) return null;
-    const dataUrl = canvas.toDataURL("image/png");
+    if (!graph3d) return null;
+    // Force a fresh paint immediately before reading the canvas - without
+    // preserveDrawingBuffer, the buffer can be cleared before we get to it.
+    graph3d.renderer().render(graph3d.scene(), graph3d.camera());
+    const dataUrl = graph3d.renderer().domElement.toDataURL("image/png");
     return dataUrl.length > 100 ? dataUrl : null;
   } catch (e) {
     return null;
