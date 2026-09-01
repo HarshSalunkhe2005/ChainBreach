@@ -66,7 +66,10 @@
 
   <section class="results" id="results" hidden>
     <div class="results-left">
-      <h2>Attribution candidates</h2>
+      <div class="results-left-header">
+        <h2>Attribution candidates</h2>
+        <button id="export-report-btn" type="button" class="export-btn">Export report</button>
+      </div>
       <div id="candidate-list"></div>
     </div>
     <div class="results-right">
@@ -102,6 +105,8 @@
 <footer>
   Built on public blockchain data — <a href="https://github.com/graphsense/graphsense-tagpacks" target="_blank" rel="noopener">GraphSense TagPacks</a> · <a href="https://blockstream.info/api/" target="_blank" rel="noopener">Blockstream Esplora API</a>
 </footer>
+
+<div id="report" class="report"></div>
 
 <script src="app.js"></script>
 </body>
