@@ -23,9 +23,11 @@ const batchAnalyzeBtn = document.getElementById("batch-analyze-btn");
 const batchResultsEl = document.getElementById("batch-results");
 const batchTbody = document.getElementById("batch-tbody");
 const exportReportBtn = document.getElementById("export-report-btn");
+const copyLinkBtn = document.getElementById("copy-link-btn");
 const reportEl = document.getElementById("report");
 const chainBtns = document.querySelectorAll(".chain-btn");
 const heroSub = document.querySelector(".hero-sub");
+const toastContainer = document.getElementById("toast-container");
 
 const CHAIN_LABELS = { btc: "Bitcoin", eth: "Ethereum" };
 const CHAIN_ARTICLE = { btc: "a", eth: "an" };
@@ -34,6 +36,54 @@ let graph3d = null;
 let lastResult = null;
 let lastAddress = null;
 let currentChain = "btc";
+
+// ---------- toasts ----------
+
+function showToast(message, type = "info") {
+  const toast = document.createElement("div");
+  toast.className = `toast toast-${type}`;
+  toast.textContent = message;
+  toastContainer.appendChild(toast);
+  requestAnimationFrame(() => toast.classList.add("show"));
+  setTimeout(() => {
+    toast.classList.remove("show");
+    setTimeout(() => toast.remove(), 300);
+  }, 2600);
+}
+
+// ---------- keyboard shortcuts ----------
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "/" && document.activeElement !== input && document.activeElement !== batchTextarea) {
+    e.preventDefault();
+    if (batchResultsEl && !document.querySelector('.tab[data-tab="single"]').classList.contains("active")) {
+      document.querySelector('.tab[data-tab="single"]').click();
+    }
+    input.focus();
+  }
+});
+
+// ---------- shareable links ----------
+
+function updateUrlState(address, chain) {
+  const url = new URL(window.location.href);
+  url.searchParams.set("address", address);
+  url.searchParams.set("chain", chain);
+  window.history.replaceState({}, "", url);
+}
+
+function loadFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const address = params.get("address");
+  const chain = params.get("chain");
+  if (!address) return;
+  if (chain && CHAIN_LABELS[chain]) {
+    const btn = document.querySelector(`.chain-btn[data-chain="${chain}"]`);
+    if (btn && chain !== currentChain) btn.click();
+  }
+  input.value = address;
+  runAnalysis();
+}
 
 // ---------- tabs ----------
 
@@ -67,6 +117,19 @@ chainBtns.forEach((btn) => {
 
 // ---------- stats ----------
 
+function animateStatCount(total, exchangeCount, chains) {
+  const duration = 800;
+  const start = performance.now();
+  function tick(now) {
+    const progress = Math.min((now - start) / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    const current = Math.round(total * eased);
+    topbarStatsEl.textContent = `${current.toLocaleString()} tagged addresses · ${exchangeCount} exchanges · ${chains}`;
+    if (progress < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
 async function loadStats() {
   try {
     const res = await fetch(`${API_BASE}/api/stats`);
@@ -74,7 +137,7 @@ async function loadStats() {
     const exchangeCount =
       (stats.categories.find(([cat]) => cat === "exchange") || [null, 0])[1];
     const chains = Object.keys(stats.by_currency || {}).join(" + ") || "BTC";
-    topbarStatsEl.textContent = `${stats.tagged_addresses.toLocaleString()} tagged addresses · ${exchangeCount} exchanges · ${chains}`;
+    animateStatCount(stats.tagged_addresses, exchangeCount, chains);
   } catch (e) {
     topbarStatsEl.textContent = "dataset unavailable";
   }
@@ -113,6 +176,23 @@ function isRisky(category) {
   return RISKY_CATEGORIES.has(category);
 }
 
+const RING_CIRCUMFERENCE = 2 * Math.PI * 16;
+
+function confidenceRingSvg(score, confidence) {
+  const fraction = Math.min(score / 5, 1);
+  const offset = RING_CIRCUMFERENCE * (1 - fraction);
+  return `
+    <div class="conf-ring-wrap">
+      <svg class="conf-ring" viewBox="0 0 40 40">
+        <circle class="conf-ring-bg" cx="20" cy="20" r="16" />
+        <circle class="conf-ring-fill ${confidence}" cx="20" cy="20" r="16"
+          stroke-dasharray="${RING_CIRCUMFERENCE}" stroke-dashoffset="${offset}" />
+      </svg>
+      <span class="conf-ring-score">${score}</span>
+    </div>
+  `;
+}
+
 function renderCandidates(candidates) {
   candidateListEl.innerHTML = "";
   if (candidates.length === 0) {
@@ -145,7 +225,10 @@ function renderCandidates(candidates) {
 
     card.innerHTML = `
       <div class="candidate-header">
-        <span class="candidate-name">${c.label}</span>
+        <div class="candidate-title">
+          ${confidenceRingSvg(c.score, c.confidence)}
+          <span class="candidate-name">${c.label}</span>
+        </div>
         <span class="badge-row">
           ${riskBadge}
           <span class="badge ${confidenceClass(c.confidence)}">${c.confidence}</span>
@@ -259,6 +342,7 @@ async function runAnalysis() {
     renderCandidates(result.candidates);
     resultsEl.hidden = false;
     renderGraph(result.graph);
+    updateUrlState(address, currentChain);
   } catch (e) {
     statusEl.textContent = `Error: ${e.message}`;
   } finally {
@@ -441,5 +525,17 @@ exportReportBtn.addEventListener("click", () => {
   window.print();
 });
 
+copyLinkBtn.addEventListener("click", async () => {
+  if (!lastAddress) return;
+  updateUrlState(lastAddress, currentChain);
+  try {
+    await navigator.clipboard.writeText(window.location.href);
+    showToast("Link copied to clipboard", "success");
+  } catch (e) {
+    showToast("Couldn't copy link", "error");
+  }
+});
+
 loadStats();
 loadSamples();
+loadFromUrl();

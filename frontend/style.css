@@ -128,6 +128,60 @@ footer a:hover { color: var(--accent); }
   line-height: 1.5;
 }
 
+/* ---------- pipeline strip ---------- */
+
+.pipeline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 28px;
+}
+
+.pipeline-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  min-width: 128px;
+}
+
+.pipeline-tag {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--accent);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.pipeline-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.pipeline-desc {
+  font-size: 0.68rem;
+  color: var(--text-faint);
+  text-align: center;
+}
+
+.pipeline-arrow {
+  color: var(--border-strong);
+  font-size: 1.1rem;
+}
+
+@media (max-width: 700px) {
+  .pipeline-arrow { display: none; }
+  .pipeline { flex-direction: column; }
+  .pipeline-step { width: 100%; max-width: 280px; }
+}
+
 /* ---------- query panel ---------- */
 
 .query-panel {
@@ -202,6 +256,27 @@ footer a:hover { color: var(--accent); }
   gap: 10px;
 }
 
+.input-wrap {
+  position: relative;
+  flex: 1;
+  display: flex;
+}
+
+.input-kbd {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-faint);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  padding: 1px 6px;
+  pointer-events: none;
+  background: var(--surface-2);
+}
+
 #address-input, #batch-textarea {
   font-family: var(--font-mono);
   font-size: 0.9rem;
@@ -209,7 +284,7 @@ footer a:hover { color: var(--accent); }
 
 #address-input {
   flex: 1;
-  padding: 12px 14px;
+  padding: 12px 38px 12px 14px;
   border-radius: 8px;
   border: 1px solid var(--border-strong);
   background: var(--bg);
@@ -349,6 +424,11 @@ button {
 
 .results-left-header h2 { margin: 0; }
 
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+
 .export-btn {
   padding: 6px 14px;
   border-radius: 6px;
@@ -431,9 +511,58 @@ button {
   gap: 8px;
 }
 
+.candidate-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .candidate-name {
   font-weight: 600;
   font-size: 1rem;
+}
+
+.conf-ring {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  transform: rotate(-90deg);
+}
+
+.conf-ring-bg {
+  fill: none;
+  stroke: var(--border-strong);
+  stroke-width: 3;
+}
+
+.conf-ring-fill {
+  fill: none;
+  stroke-width: 3;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.6s ease;
+}
+
+.conf-ring-fill.high { stroke: var(--accent); }
+.conf-ring-fill.medium { stroke: var(--medium); }
+.conf-ring-fill.low { stroke: var(--low); }
+
+.conf-ring-wrap {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+}
+
+.conf-ring-score {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: var(--text-muted);
 }
 
 .badge-row { display: flex; gap: 6px; }
@@ -634,3 +763,37 @@ td.mono, .mono { font-family: var(--font-mono); }
     padding: 24px 32px;
   }
 }
+
+/* ---------- toasts ---------- */
+
+.toast-container {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: var(--surface-3);
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  font-size: 0.82rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast.toast-success { border-color: var(--accent-dim); }
+.toast.toast-error { border-color: var(--risk); }

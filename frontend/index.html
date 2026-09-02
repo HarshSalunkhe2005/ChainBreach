@@ -4,6 +4,11 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>ChainBreach — Wallet Attribution</title>
+<meta name="description" content="Automated attribution of unknown cryptocurrency wallets to their nearest Virtual Asset Service Provider — multi-hop tracing, confidence-scored evidence, built for SIH26182." />
+<meta property="og:title" content="ChainBreach — Wallet → VASP Attribution" />
+<meta property="og:description" content="Trace a suspect crypto wallet to the exchange it's tied to, with cited on-chain evidence." />
+<meta name="theme-color" content="#0a0e14" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='4' y='4' width='14' height='14' rx='3' fill='none' stroke='%2335d0ba' stroke-width='2.6'/%3E%3Crect x='14' y='14' width='14' height='14' rx='3' fill='none' stroke='%238b96a8' stroke-width='2.6'/%3E%3C/svg%3E" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
@@ -31,6 +36,32 @@
     <p class="hero-sub">Trace a suspect Bitcoin wallet to the exchange it's tied to — with confidence scoring and cited on-chain evidence, not a black-box guess.</p>
   </section>
 
+  <section class="pipeline" aria-label="How it works">
+    <div class="pipeline-step">
+      <span class="pipeline-tag">01</span>
+      <span class="pipeline-label">Fetch</span>
+      <span class="pipeline-desc">Live transactions from the chain</span>
+    </div>
+    <span class="pipeline-arrow">→</span>
+    <div class="pipeline-step">
+      <span class="pipeline-tag">02</span>
+      <span class="pipeline-label">Trace</span>
+      <span class="pipeline-desc">Multi-hop clustering, 2 hops deep</span>
+    </div>
+    <span class="pipeline-arrow">→</span>
+    <div class="pipeline-step">
+      <span class="pipeline-tag">03</span>
+      <span class="pipeline-label">Match</span>
+      <span class="pipeline-desc">8,700+ tagged VASP addresses</span>
+    </div>
+    <span class="pipeline-arrow">→</span>
+    <div class="pipeline-step">
+      <span class="pipeline-tag">04</span>
+      <span class="pipeline-label">Attribute</span>
+      <span class="pipeline-desc">Ranked, cited, confidence-scored</span>
+    </div>
+  </section>
+
   <section class="query-panel">
     <div class="tabs" role="tablist">
       <button class="tab active" data-tab="single" type="button">Single Address</button>
@@ -43,7 +74,10 @@
 
     <div class="tab-panel" data-panel="single">
       <div class="input-row">
-        <input id="address-input" type="text" placeholder="Enter a Bitcoin address" spellcheck="false" />
+        <div class="input-wrap">
+          <input id="address-input" type="text" placeholder="Enter a Bitcoin address" spellcheck="false" />
+          <kbd class="input-kbd">/</kbd>
+        </div>
         <button id="analyze-btn" type="button">Analyze</button>
       </div>
       <div class="samples" id="samples"></div>
@@ -72,7 +106,10 @@
     <div class="results-left">
       <div class="results-left-header">
         <h2>Attribution candidates</h2>
-        <button id="export-report-btn" type="button" class="export-btn">Export report</button>
+        <div class="header-actions">
+          <button id="copy-link-btn" type="button" class="export-btn">Copy link</button>
+          <button id="export-report-btn" type="button" class="export-btn">Export report</button>
+        </div>
       </div>
       <div id="candidate-list"></div>
     </div>
@@ -111,6 +148,7 @@
 </footer>
 
 <div id="report" class="report"></div>
+<div id="toast-container" class="toast-container" aria-live="polite"></div>
 
 <script src="app.js"></script>
 </body>

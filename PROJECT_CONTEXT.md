@@ -52,6 +52,15 @@ I4C wants a system that takes a suspect wallet address reported in a cybercrime 
 - [x] Fixed a real horizontal-overflow bug found while testing the 3D graph on a narrow viewport: `.graph-header`/`.legend` weren't wrapping, pushing the page 71px wider than the viewport. Added `flex-wrap` + `min-width: 0` on the results grid children (a classic CSS Grid overflow gotcha).
 - [x] Added exportable investigation report: "Export report" button builds a print-friendly view (metadata, ranked candidates + evidence, graph snapshot) and triggers the browser's print-to-PDF dialog. Graph snapshot capture required forcing a fresh `renderer.render()` call immediately before `canvas.toDataURL()` — without `preserveDrawingBuffer`, the WebGL buffer can be cleared before a naive capture reads it. (Tried passing `rendererConfig: {preserveDrawingBuffer:true}` to the `ForceGraph3D()` constructor first — that broke the camera/lookAt setup, zooming the camera inside the target node. Reverted; the render-then-capture approach avoids touching the constructor entirely.)
 - [x] Added Ethereum support end-to-end (see decision above) — verified live against Blockscout for both the positive-match and no-match demo addresses, confirmed no BTC regression (single, batch) after the change.
+- [x] "Top notch" polish pass, self-directed per an open mandate to raise the UI to the standard of real blockchain-intelligence tools (Chainalysis Reactor/TRM/Elliptic-style UX), all verified in browser:
+  - Favicon + meta description/OG tags for the page head.
+  - A 4-step "how it works" pipeline strip (Fetch → Trace → Match → Attribute) under the hero.
+  - Per-candidate confidence gauge: an SVG progress ring (`score/5` capped at 100%, colored by confidence band) next to each candidate name, replacing the plain text-only badge.
+  - Toast notifications (`showToast`, bottom-of-screen, auto-dismiss) for background actions like copy-link.
+  - Shareable result links: a "Copy link" button next to "Export report" that writes `?address=&chain=` into the URL and clipboard; loading that URL restores the chain, address, and re-runs the analysis automatically, and the URL stays in sync after every successful analysis (`history.replaceState`).
+  - "/" keyboard shortcut to jump straight to the address input from anywhere on the page.
+  - Animated (eased) count-up for the top-bar tagged-address stat instead of an instant value snap.
+  - Testing note: the in-editor browser-automation tool's simulated clicks/key-presses were unreliable specifically on the copy-link button and Enter-to-analyze (silently no-op some of the time); verified correctness instead by dispatching real DOM events (`element.click()`, `KeyboardEvent`) and by direct state inspection — both paths work correctly. Clipboard-write itself is denied by that sandboxed browser's permissions (expected there, not an app bug — a real browser prompts/grants normally).
 
 ## Known tooling quirk (not a product bug)
 
