@@ -27,10 +27,16 @@ SAMPLE_ADDRESSES = {
     "btc": {
         "1KVUqmhw1X5AEXcKSFcDrkzVsApebVNjqA": "Real 2014 deposit into a known exchange (C-Cex.com) — expect a match.",
         "1BfRMjJsX3154EoDWgXqW9Jf4kzqfKQHnp": "Real wallet with no known VASP counterparties — expect no match.",
+        "16ftSEQ4ctQFDtVZiUBusQUjRrGhM3JYwe": "Binance hot wallet — expect a list of 2 linked VASPs (Binance + Bybit).",
+        "12qTdZHx6f77aQ74CPCZGSY47VaRwYjVD8": "Huobi reserve wallet — expect a high-confidence single match.",
+        "1GGZmvCeQ11ermqXffroYBoj4uad7FgrG3": "Known Locky ransomware wallet — expect a flagged, high-risk match.",
     },
     "eth": {
         "0x048f28f1a5cbc3f62f077625808E0e9903fe7706": "Real wallet that deposited into Binance's cold wallet — expect a match.",
         "0xeA5b5f01e5aC77f132E9135406cE1552bb0C1d43": "Real wallet with no known VASP counterparties — expect no match.",
+        "0x6fb624b48d9299674022a23d92515e76ba880113": "Exchange hub wallet — expect a list of 2 linked VASPs (Binance + OKX).",
+        "0x2eed6a08fb89a5cd111efa33f8dca46cfbeb370f": "Deribit reserve wallet — expect a strong single-exchange match.",
+        "0x07687e702b410fa43f4cb4af7fa097918ffd2730": "Known Tornado Cash mixer wallet — expect a flagged, high-risk match.",
     },
 }
 

@@ -30,10 +30,32 @@ I4C wants a system that takes a suspect wallet address reported in a cybercrime 
 - **Multi-hop tracing (`backend/app/trace.py`):** BFS outward from the target address up to 2 hops, not just the target's own direct transactions. Expansion stops at a node once it's a known VASP (that's the destination) and is capped at `MAX_EXPANSIONS=4` additional addresses total, fetched in parallel per hop via `ThreadPoolExecutor` (I/O-bound). `bitcoin_client.REQUEST_TIMEOUT` dropped from 6s→4s and `MAX_EXPANSIONS` from an initial 6→4 after measuring ~11.6s worst-case for a busy address — needed headroom under Vercel's serverless timeout. Typical case now ~2-5s. Confidence scoring decays by hop (`weight / hop`) so a 2-hop link counts for less than a direct one. Batch endpoint stays at `max_hops=1` (fast, since it fans out across up to 15 addresses sequentially) — only the single-address endpoint gets the full 2-hop trace.
 - **3D graph (replaced vis-network with `3d-force-graph`):** curved/arced links (`linkCurvature 0.28`), animated directional particles flowing along links (disabled automatically above 80 edges to keep dense graphs legible), drag-to-rotate/scroll-to-zoom via built-in orbit controls, `zoomToFit` on engine-stop for automatic framing. Node size/color still encode role (target/VASP/risk/unknown) and hop distance. Real bug hit and fixed: initializing `ForceGraph3D()` while the results panel was still `hidden` produced a 0×0 canvas (container had no layout size yet) — fixed by explicitly calling `.width()/.height()` off `graphEl.clientWidth/clientHeight` on every render call, plus a `window resize` listener, rather than relying on the library's own measurement timing.
 
-## Demo addresses (bundled as fixtures + sample buttons in the UI)
+## Demo addresses (sample buttons in the UI)
 
-- `1KVUqmhw1X5AEXcKSFcDrkzVsApebVNjqA` — real 2014 Bitcoin address that deposited directly into a tagged C-Cex.com exchange address. Produces a "medium confidence" match via the direct-counterparty heuristic. Good positive-case demo.
-- `1BfRMjJsX3154EoDWgXqW9Jf4kzqfKQHnp` — real address with no known VASP counterparties in its transaction history. Produces "no match" honestly. Good negative-case demo (shows the tool doesn't force false positives).
+Found by live-testing real, currently-active exchange/mixer/ransomware addresses from the tag database against the actual pipeline (not fabricated) — chosen to cover the range of outcomes the tool can produce, for the internal-round demo. Only the original two BTC/ETH addresses have offline fixtures for full outage-proof fallback; the five new edge-case addresses below rely on the live API (fine for a normal-connectivity demo, just not fixture-backed).
+
+**Bitcoin:**
+- `1KVUqmhw1X5AEXcKSFcDrkzVsApebVNjqA` — real 2014 deposit directly into a tagged C-Cex.com exchange address. Medium-confidence single match. Positive-case baseline. *(has offline fixture)*
+- `1BfRMjJsX3154EoDWgXqW9Jf4kzqfKQHnp` — real address, no known VASP counterparties. Honest "no match." Negative-case baseline. *(has offline fixture)*
+- `16ftSEQ4ctQFDtVZiUBusQUjRrGhM3JYwe` — a real Binance hot wallet. 2-hop trace surfaces **two distinct VASPs** — Binance.com (medium) and Bybit reserve wallets (low) — the "ranked list" case, not just a single match.
+- `12qTdZHx6f77aQ74CPCZGSY47VaRwYjVD8` — a real Huobi reserve wallet. High-confidence single match (score 12.0 at 2 hops) — strong-evidence case.
+- `1GGZmvCeQ11ermqXffroYBoj4uad7FgrG3` — a real address tagged to the Locky ransomware family. High-confidence match that also carries the red "flagged" risk badge — the illicit-category case.
+
+**Ethereum:**
+- `0x048f28f1a5cbc3f62f077625808e0e9903fe7706` — real wallet that deposited into Binance's cold wallet. Medium-confidence match. Positive-case baseline. *(has offline fixture)*
+- `0xea5b5f01e5ac77f132e9135406ce1552bb0c1d43` — real wallet, no known VASP counterparties. Honest "no match." Negative-case baseline. *(has offline fixture)*
+- `0x6fb624b48d9299674022a23d92515e76ba880113` — an exchange hub wallet. 2-hop trace surfaces **two distinct VASPs** — Binance BUSD reserves and OKX ERC20 reserves, both medium confidence — the ranked-list case for ETH.
+- `0x2eed6a08fb89a5cd111efa33f8dca46cfbeb370f` — a real Deribit reserve wallet. Strong single-exchange match (high at 2 hops).
+- `0x07687e702b410fa43f4cb4af7fa097918ffd2730` — a real Tornado Cash address (OFAC-sanctioned mixer in real life). High-confidence match with the red flagged badge — the illicit-category case for ETH.
+
+**Batch-mode demo list** (paste into the Batch Upload tab, BTC selected) — deliberately picked because all four still resolve meaningfully even though batch mode caps tracing at 1 hop (vs. 2 for single-address), unlike the two multi-VASP addresses above which need the deeper trace:
+```
+1KVUqmhw1X5AEXcKSFcDrkzVsApebVNjqA
+1BfRMjJsX3154EoDWgXqW9Jf4kzqfKQHnp
+12qTdZHx6f77aQ74CPCZGSY47VaRwYjVD8
+1GGZmvCeQ11ermqXffroYBoj4uad7FgrG3
+```
+Produces a table with one of each outcome: match / no-match / high-confidence / flagged — verified live, gives a genuinely mixed-results table rather than four near-identical rows.
 
 ## Current status
 
