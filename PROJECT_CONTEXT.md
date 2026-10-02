@@ -1,97 +1,79 @@
 # Project Context
 
-Running log of state, decisions, and progress for ChainBreach. Update this file as part of every commit that changes the project.
+Running state of ChainBreach. Update this file in every commit that changes the project.
 
 ## What this is
 
-Prototype + pitch content for SIH problem statement **SIH26182**: "Automated Attribution of Unknown Cryptocurrency Wallets to Nearest Virtual Asset Service Providers (VASPs) through Blockchain Intelligence APIs" — Ministry of Home Affairs / I4C, Blockchain & Cybersecurity theme.
+Prototype for SIH problem statement **SIH26182**: automated attribution of unknown cryptocurrency wallets to the nearest Virtual Asset Service Provider (VASP), Ministry of Home Affairs / I4C, Blockchain & Cybersecurity theme. Team ChainBreach.
 
-- Internal round presentation: 2 Sept 2026
-- Team: ChainBreach (6 members; prototype/code work is effectively solo)
+Live: https://chain-breach.vercel.app (Vercel auto-deploys every push to `main`).
 
-## Problem statement summary
+The full problem statement also asks for TRON/BNB/Solana/Polygon, SAHYOG portal routing and a broader tool (I4C's CIAT). This prototype covers Bitcoin and Ethereum end to end and presents the rest as roadmap.
 
-I4C wants a system that takes a suspect wallet address reported in a cybercrime investigation and automatically traces it to the exchange/VASP it's tied to. Requirements: multi-chain (BTC/ETH/TRON/BNB/Solana/Polygon), detect exchange clusters + hot/deposit wallets + mixers + DeFi bridges, integrate with the SAHYOG Portal (I4C's real legal-disclosure-request system) for automated routing, produce risk-scored/confidence-rated VASP candidates, and generate investigation-ready reports/visualizations. Deadline pressure context: I4C is separately building a broader system called CIAT (Cryptocurrency Intelligence and Analysis Tool) — this problem statement is effectively a scoped piece of that.
+## Architecture
 
-## Decisions made
-
-- **Scope for internal round: Bitcoin + Ethereum.** Full problem statement asks for BTC/ETH/TRON/BNB/Solana/Polygon; started BTC-only, added ETH once time allowed (see below). Architecture (fetch → cluster → attribute) is designed to extend to further account-based chains the same way — pitch remaining chains as roadmap, not a gap.
-- **Ethereum support (`backend/app/ethereum_client.py`):** live data from Blockscout's public API (`eth.blockscout.com/api/v2`, no key required). Each ETH transfer is represented in the *same* `Tx`/`Vin`/`Vout` shape `bitcoin_client` uses (single vin = sender, single vout = receiver), so `clustering.find_relations` works completely unmodified — co-spend clustering just never fires (there's only ever one vin), which is exactly correct behavior for an account-based chain: only the direct-counterparty heuristics apply. `trace.py` takes a `chain: "btc"|"eth"` param and picks the client. Tag database (`build_tags.py`) now keeps both BTC and ETH currency entries in one flat map — address formats don't collide, so no schema change needed. ETH addresses are lowercased everywhere (checksummed mixed-case is cosmetic only) — hit and fixed a real bug where the target address stayed mixed-case in one code path while graph edges used the lowercased form, producing a "node not found" mismatch in the 3D graph. Frontend has a Bitcoin/Ethereum pill toggle next to the tabs; batch mode and the report export both respect the selected chain. Two real ETH fixtures added the same way as BTC (a real address that deposited into a tagged Binance cold wallet; a real address with no known VASP contact) for offline fallback.
-- **Data strategy: hybrid.** Live calls to Blockstream's public Esplora API as primary path; falls back automatically to bundled real-transaction fixtures if the live call fails, so the demo never breaks on stage.
-- **VASP tag database: GraphSense TagPacks.** Public, MIT-licensed dataset (github.com/graphsense/graphsense-tagpacks). Converted the BTC-relevant entries into a flat `tagdata/vasp_tags.json` via `tagdata/build_tags.py`. Real, citable, no API key needed. Now at **8,435 addresses** (177 exchanges, plus ransomware/darknet-market/mixer/sanctions categories via the `abuse` field fallback) — up from an initial ~440 exchange-only subset. `raw/samourai.yaml` (36k uncategorized coinjoin-participant addresses, low individual value) deliberately excluded to keep the dataset lean; more GraphSense pack files exist upstream (`raw/all_urls.txt`-style full pull) but downloading them hit intermittent rate-limiting from raw.githubusercontent.com — single sequential requests work fine, tight loops don't. Revisit if more coverage is wanted later.
-- **Risk categorization:** candidate/graph nodes whose tag category is in `{ransomware, market, mixing_service, extremism, service_hack, coinjoin}` get a red "flagged" badge in the UI, separate from the confidence score — lets the tool surface "this links to a known-illicit entity" distinctly from "this links to a legitimate exchange."
-- **Heuristics implemented:** common-input-ownership (co-spend) clustering, and direct-counterparty (deposit/withdrawal) matching. High fan-out transactions (>25 inputs or outputs — batched exchange sweeps) are excluded from both to avoid the "super-cluster" explosion problem known in blockchain forensics.
-- **Stack:** Python/FastAPI backend, vanilla JS frontend with 3d-force-graph (three.js-based) for the graph. Single process serves both API and static frontend (`uvicorn main:app`) — simplest possible run story for judges.
-- **Repo hygiene (standing rule, also in `C:\Users\Harsh\Projects\PERMANENT_INSTRUCTIONS.txt`):** no AI/Claude/Anthropic mentions anywhere in this repo; commits pushed via GitHub Credential Manager under the `HarshSalunkhe2005` account (switched from a scoped-PAT + plaintext `git-credential-store` approach after the original PAT turned out to belong to the wrong GitHub account).
-- **Design system (standing rule, also in PERMANENT_INSTRUCTIONS.txt):** deliberately avoid the generic "AI-generated" look. Typography: IBM Plex Sans (UI) + IBM Plex Mono (addresses/hashes/data), via Google Fonts. Palette: near-black navy surfaces (`#0a0e14`/`#0f1520`/`#131a27`), one restrained accent (teal `#35d0ba`), red reserved strictly for flagged/illicit-category content, amber for medium confidence. No gradients, no emoji-as-icons, no glow/3D effects — flat, bordered panels with a small geometric SVG brand mark (two interlocking rounded squares, evoking a broken chain link).
-- **Batch upload feature:** `/api/attribute/batch` (POST `{addresses: [...]}`, capped at `MAX_BATCH_SIZE=15`) runs the same fetch→cluster→attribute pipeline per address and returns a results array (top candidate + confidence per address). Frontend has a tabbed UI (Single Address / Batch Upload) with drag-and-drop file upload or a paste-in textarea, rendered as a results table.
-- **`/api/stats`** exposes dataset size (tagged address count, distinct actors, category breakdown) — shown as a badge in the top bar so the "more data" story is visible at a glance, not just claimed in the pitch.
-- **Deployed on Vercel:** live at https://chain-breach.vercel.app. `api/index.py` is the serverless entrypoint (`sys.path` trick to import the same `backend/app/main.py` FastAPI app unmodified); `vercel.json` routes `/api/*` to the function and everything else to `frontend/` as static files, with `includeFiles: "backend/**"` so the tag database/fixtures get bundled into the function. Connected via the Vercel dashboard's GitHub import (auto-deploys on every push to `main`) — user's choice over CLI+token, to keep the deploy step outside anything requiring a shared credential.
-- **Multi-hop tracing (`backend/app/trace.py`):** BFS outward from the target address up to 2 hops, not just the target's own direct transactions. Expansion stops at a node once it's a known VASP (that's the destination) and is capped at `MAX_EXPANSIONS=4` additional addresses total, fetched in parallel per hop via `ThreadPoolExecutor` (I/O-bound). `bitcoin_client.REQUEST_TIMEOUT` dropped from 6s→4s and `MAX_EXPANSIONS` from an initial 6→4 after measuring ~11.6s worst-case for a busy address — needed headroom under Vercel's serverless timeout. Typical case now ~2-5s. Confidence scoring decays by hop (`weight / hop`) so a 2-hop link counts for less than a direct one. Batch endpoint stays at `max_hops=1` (fast, since it fans out across up to 15 addresses sequentially) — only the single-address endpoint gets the full 2-hop trace.
-- **3D graph (replaced vis-network with `3d-force-graph`):** curved/arced links (`linkCurvature 0.28`), animated directional particles flowing along links (disabled automatically above 80 edges to keep dense graphs legible), drag-to-rotate/scroll-to-zoom via built-in orbit controls, `zoomToFit` on engine-stop for automatic framing. Node size/color still encode role (target/VASP/risk/unknown) and hop distance. Real bug hit and fixed: initializing `ForceGraph3D()` while the results panel was still `hidden` produced a 0×0 canvas (container had no layout size yet) — fixed by explicitly calling `.width()/.height()` off `graphEl.clientWidth/clientHeight` on every render call, plus a `window resize` listener, rather than relying on the library's own measurement timing.
-
-## Demo addresses (sample buttons in the UI)
-
-Found by live-testing real, currently-active exchange/mixer/ransomware addresses from the tag database against the actual pipeline (not fabricated) — chosen to cover the range of outcomes the tool can produce, for the internal-round demo. Only the original two BTC/ETH addresses have offline fixtures for full outage-proof fallback; the five new edge-case addresses below rely on the live API (fine for a normal-connectivity demo, just not fixture-backed).
-
-**Bitcoin:**
-- `1KVUqmhw1X5AEXcKSFcDrkzVsApebVNjqA` — real 2014 deposit directly into a tagged C-Cex.com exchange address. Medium-confidence single match. Positive-case baseline. *(has offline fixture)*
-- `1BfRMjJsX3154EoDWgXqW9Jf4kzqfKQHnp` — real address, no known VASP counterparties. Honest "no match." Negative-case baseline. *(has offline fixture)*
-- `16ftSEQ4ctQFDtVZiUBusQUjRrGhM3JYwe` — a real Binance hot wallet. 2-hop trace surfaces **two distinct VASPs** — Binance.com (medium) and Bybit reserve wallets (low) — the "ranked list" case, not just a single match.
-- `12qTdZHx6f77aQ74CPCZGSY47VaRwYjVD8` — a real Huobi reserve wallet. High-confidence single match (score 12.0 at 2 hops) — strong-evidence case.
-- `1GGZmvCeQ11ermqXffroYBoj4uad7FgrG3` — a real address tagged to the Locky ransomware family. High-confidence match that also carries the red "flagged" risk badge — the illicit-category case.
-
-**Ethereum:**
-- `0x048f28f1a5cbc3f62f077625808e0e9903fe7706` — real wallet that deposited into Binance's cold wallet. Medium-confidence match. Positive-case baseline. *(has offline fixture)*
-- `0xea5b5f01e5ac77f132e9135406ce1552bb0c1d43` — real wallet, no known VASP counterparties. Honest "no match." Negative-case baseline. *(has offline fixture)*
-- `0x6fb624b48d9299674022a23d92515e76ba880113` — an exchange hub wallet. 2-hop trace surfaces **two distinct VASPs** — Binance BUSD reserves and OKX ERC20 reserves, both medium confidence — the ranked-list case for ETH.
-- `0x2eed6a08fb89a5cd111efa33f8dca46cfbeb370f` — a real Deribit reserve wallet. Strong single-exchange match (high at 2 hops).
-- `0x07687e702b410fa43f4cb4af7fa097918ffd2730` — a real Tornado Cash address (OFAC-sanctioned mixer in real life). High-confidence match with the red flagged badge — the illicit-category case for ETH.
-
-**Batch-mode demo list** (paste into the Batch Upload tab, BTC selected) — deliberately picked because all four still resolve meaningfully even though batch mode caps tracing at 1 hop (vs. 2 for single-address), unlike the two multi-VASP addresses above which need the deeper trace:
 ```
-1KVUqmhw1X5AEXcKSFcDrkzVsApebVNjqA
-1BfRMjJsX3154EoDWgXqW9Jf4kzqfKQHnp
-12qTdZHx6f77aQ74CPCZGSY47VaRwYjVD8
-1GGZmvCeQ11ermqXffroYBoj4uad7FgrG3
+frontend/   static single page: index.html, style.css, app.js, embers.js, fonts/, vendor/3d-force-graph.min.js
+backend/app FastAPI: main.py (routes, serves frontend locally), trace.py, clustering.py, attribution.py,
+            bitcoin_client.py, ethereum_client.py, tagdata/, fixtures/, fixtures_eth/
+api/        Vercel serverless entrypoint, imports the same FastAPI app
 ```
-Produces a table with one of each outcome: match / no-match / high-confidence / flagged — verified live, gives a genuinely mixed-results table rather than four near-identical rows.
 
-## Current status
+Pipeline: fetch (explorer API, fixture fallback) -> trace (BFS, up to 2 hops) -> cluster (heuristics) -> attribute (tag match, confidence score) -> report.
 
-- [x] Backend: fetch, cluster, attribute, API — working end-to-end, verified against both live API and offline fixtures.
-- [x] Frontend: address input, sample-address shortcuts, candidate list with evidence + source links, transaction graph visualization — verified in browser.
-- [x] Fixed a bug where high-fan-out transactions (exchange batch sweeps, one with 501 outputs) blew up the graph to 1700+ nodes; capped via `MAX_FANOUT` in `clustering.py`.
-- [x] Redesigned frontend: new design system (see above), tabbed single/batch UI, dataset stats badge, risk-flag badges on illicit-category matches — verified in browser (single address, batch upload, both demo fixtures).
-- [x] Batch upload endpoint + UI — verified end-to-end with real addresses.
-- [x] Expanded VASP tag dataset from ~440 to 8,435 addresses.
-- [x] PPT content drafted for internal round, matching the official SIT/SIH 6-slide template exactly (title, idea, technical approach, feasibility, impact, references) — given directly to the user, not stored in this repo. Deck itself has been built by a teammate.
-- [x] Deployed to Vercel and verified live: single-address lookup, batch endpoint (mixed valid/invalid input), `/api/stats`, garbage-address handling (clean 404, no crash) — all confirmed working against the actual production deployment, not just localhost.
-- [x] Fixed a real bug found only on the live deploy: `.results { display: grid }` in CSS had higher effective priority than the `[hidden]` attribute (same specificity, later in source order), so the empty candidates/graph panel showed on every page load before any analysis ran. Fixed with a global `[hidden] { display: none !important; }` rule. `.batch-results` didn't have this bug (no competing `display` rule on it) but the global fix covers it too for safety.
-- [x] README polish: added live demo link, `api/`/`vercel.json` to the layout diagram, corrected address count.
-- [x] Multi-hop tracing (2 hops) implemented and verified — richer graphs (e.g. 8 nodes/9 edges for the C-Cex demo, up from 4/3 at 1 hop), timing tuned to stay well under Vercel's timeout after hitting an 11.6s worst case during testing.
-- [x] Swapped the graph visualization from 2D (vis-network) to interactive 3D (3d-force-graph) with curved/animated links per the user's request ("something on the interactive 3D side, like a parabola link in movies") — verified in browser for both the small positive-match graph and the large (127-node) no-match graph.
-- [x] Fixed a real horizontal-overflow bug found while testing the 3D graph on a narrow viewport: `.graph-header`/`.legend` weren't wrapping, pushing the page 71px wider than the viewport. Added `flex-wrap` + `min-width: 0` on the results grid children (a classic CSS Grid overflow gotcha).
-- [x] Added exportable investigation report: "Export report" button builds a print-friendly view (metadata, ranked candidates + evidence, graph snapshot) and triggers the browser's print-to-PDF dialog. Graph snapshot capture required forcing a fresh `renderer.render()` call immediately before `canvas.toDataURL()` — without `preserveDrawingBuffer`, the WebGL buffer can be cleared before a naive capture reads it. (Tried passing `rendererConfig: {preserveDrawingBuffer:true}` to the `ForceGraph3D()` constructor first — that broke the camera/lookAt setup, zooming the camera inside the target node. Reverted; the render-then-capture approach avoids touching the constructor entirely.)
-- [x] Added Ethereum support end-to-end (see decision above) — verified live against Blockscout for both the positive-match and no-match demo addresses, confirmed no BTC regression (single, batch) after the change.
-- [x] "Top notch" polish pass, self-directed per an open mandate to raise the UI to the standard of real blockchain-intelligence tools (Chainalysis Reactor/TRM/Elliptic-style UX), all verified in browser:
-  - Favicon + meta description/OG tags for the page head.
-  - A 4-step "how it works" pipeline strip (Fetch → Trace → Match → Attribute) under the hero.
-  - Per-candidate confidence gauge: an SVG progress ring (`score/5` capped at 100%, colored by confidence band) next to each candidate name, replacing the plain text-only badge.
-  - Toast notifications (`showToast`, bottom-of-screen, auto-dismiss) for background actions like copy-link.
-  - Shareable result links: a "Copy link" button next to "Export report" that writes `?address=&chain=` into the URL and clipboard; loading that URL restores the chain, address, and re-runs the analysis automatically, and the URL stays in sync after every successful analysis (`history.replaceState`).
-  - "/" keyboard shortcut to jump straight to the address input from anywhere on the page.
-  - Animated (eased) count-up for the top-bar tagged-address stat instead of an instant value snap.
-  - Testing note: the in-editor browser-automation tool's simulated clicks/key-presses were unreliable specifically on the copy-link button and Enter-to-analyze (silently no-op some of the time); verified correctness instead by dispatching real DOM events (`element.click()`, `KeyboardEvent`) and by direct state inspection — both paths work correctly. Clipboard-write itself is denied by that sandboxed browser's permissions (expected there, not an app bug — a real browser prompts/grants normally).
+- **Data:** Blockstream Esplora (BTC) and Blockscout (ETH), both keyless. If the live call fails or returns nothing, the same pipeline runs on bundled real-transaction fixtures (`fixtures/`, `fixtures_eth/`) so a demo survives an outage. Only the two baseline demo addresses per chain have fixtures.
+- **ETH representation:** each transfer is a single-input/single-output `Tx`, so `clustering.find_relations` works unchanged; co-spend never fires (one input), leaving the counterparty heuristics, which is correct for an account-based chain. ETH addresses are lowercased everywhere.
+- **Tags:** GraphSense TagPacks (public, MIT). `tagdata/build_tags.py` turns `tagdata/raw/*.yaml` into the flat `vasp_tags.json` (8,729 addresses: 8,435 BTC, 294 ETH, 278 distinct actors). `raw/samourai.yaml` (36k uncategorised coinjoin addresses) is deliberately left out. Upstream rate-limits tight download loops; fetch pack files one at a time.
+- **Heuristics:** common-input-ownership and direct counterparty. Transactions with more than 25 inputs or outputs are skipped (`MAX_FANOUT`) to avoid the super-cluster failure mode. Weights: co-spend 3, sent-to 2, received-from 1, divided by hop. Bands: high >= 5, medium >= 2, else low.
+- **Multi-hop:** `trace.py` expands outward up to 2 hops, stops at a known VASP, caps extra expansions at 4 (`MAX_EXPANSIONS`) and fetches each hop in parallel. Request timeout is 4 s. These numbers were tuned against Vercel's serverless time limit (worst case measured 11.6 s before tuning, typically 2-5 s after). Batch mode traces 1 hop only and is capped at 15 addresses.
+- **Risk flag:** tag categories `ransomware, market, mixing_service, extremism, service_hack, coinjoin` show a red "flagged" badge, separate from confidence.
+- **API:** `GET /api/stats`, `GET /api/samples?chain=`, `POST /api/attribute`, `POST /api/attribute/batch`. Unknown chain gives 400, an address with no data gives 404.
 
-## Known tooling quirk (not a product bug)
+## Frontend design ("forge")
 
-The Browser-pane screenshot tool intermittently returns solid-black frames after scrolling on this page, seemingly tied to the vis-network canvas + scroll state, even though the underlying DOM/canvas content is provably correct (verified via direct pixel sampling and DOM inspection). Reloading the page or resizing the viewport clears it. Don't mistake a black screenshot for the graph being broken — check console errors and pixel/DOM state before assuming a real bug.
+Warm black, one ember accent, crimson reserved for flagged/illicit content. Big Shoulders Display (headings), Hanken Grotesk (UI), JetBrains Mono (addresses and data); fonts and 3d-force-graph are self-hosted. The hero shows a broken chain with an ember crack and rising embers (`embers.js`, canvas, pauses off-screen, static under reduced motion). The Fetch/Trace/Match/Attribute strip inside the console is both the "how it works" and a progress readout while a request runs (the API is one call, so stages advance on a timer to Match and complete when the response lands). Results: candidate cards with confidence ring, flagged styling, evidence list (first 5, expandable) and a 3D transaction graph (layout is pre-computed with warmup ticks so it frames correctly on slow GPUs; a ResizeObserver keeps the canvas matched to its panel).
 
-## Open questions / next steps
+Behaviours kept from earlier versions: tabs (single/batch), BTC/ETH toggle, sample chips, drag-and-drop batch upload, shareable `?address=&chain=` links that auto-run, `/` focuses the input, toasts, printable investigation report (graph snapshot needs a render immediately before `toDataURL`). All user/API strings are escaped before going into `innerHTML`.
 
-- Further chains (TRON/BNB/Solana/Polygon) — same account-model pattern as ETH should extend cleanly, not attempted yet.
-- Confirm final pitch framing: position as a focused, working piece of I4C's real CIAT initiative rather than a from-scratch concept.
-- Minor known cosmetic issue: a "node not found" console error fires once on first ETH graph render (denser ETH graphs specifically) but the graph still renders correctly afterward — not chased down further given time constraints; harmless but not root-caused.
-- **Demo script not written yet** — deliberately deferred by the user ("later"). Needed before the actual pitch: a 2-3 min walkthrough script (what to click, in what order, what to say while it loads) for the internal round.
-- Outside this repo entirely: the college SPOC must separately submit an Internal Hackathon Report to the SIH portal (event overview, photos, jury details, participant counts, max 15 pages) per the official SIH 2026 Guidelines — not something this project can help with directly, just flagging it's a real, separate requirement.
+The previous UI is tagged `v1-original` in git.
+
+## Demo addresses
+
+Real addresses from the tag database, chosen to cover the outcomes. Only the first two per chain have offline fixtures.
+
+Bitcoin
+- `1KVUqmhw1X5AEXcKSFcDrkzVsApebVNjqA` deposit into C-Cex.com, medium match (fixture)
+- `1BfRMjJsX3154EoDWgXqW9Jf4kzqfKQHnp` no known VASP, honest no-match (fixture)
+- `16ftSEQ4ctQFDtVZiUBusQUjRrGhM3JYwe` Binance hot wallet, two VASPs ranked (Binance, Bybit)
+- `12qTdZHx6f77aQ74CPCZGSY47VaRwYjVD8` Huobi reserve, high confidence (score 12)
+- `1GGZmvCeQ11ermqXffroYBoj4uad7FgrG3` Locky ransomware, high and flagged
+
+Ethereum
+- `0x048f28f1a5cbc3f62f077625808e0e9903fe7706` deposit into Binance cold wallet, medium (fixture)
+- `0xea5b5f01e5ac77f132e9135406ce1552bb0c1d43` no known VASP (fixture)
+- `0x6fb624b48d9299674022a23d92515e76ba880113` exchange hub, two VASPs (Binance, OKX)
+- `0x2eed6a08fb89a5cd111efa33f8dca46cfbeb370f` Deribit reserve, strong single match
+- `0x07687e702b410fa43f4cb4af7fa097918ffd2730` Tornado Cash, high and flagged
+
+Batch demo (BTC): the first, second, fourth and fifth Bitcoin addresses above give one row each of match, no-match, high-confidence and flagged. Batch takes about 10 s for five addresses because it runs sequentially.
+
+## Running locally
+
+```
+pip install -r backend/requirements.txt
+python -m uvicorn main:app --port 8010 --app-dir backend/app
+```
+
+Open http://localhost:8010. Regression check used for the redesign: API responses with `force_sample: true` for the four fixture addresses, `/api/batch`, `/api/samples` and `/api/stats` were byte-identical before and after.
+
+## Status
+
+- Backend, both chains, multi-hop, batch, fixtures, deploy: done and verified live.
+- Frontend redesign (forge): done, checked at 1440 px and phone width, BTC and ETH, single and batch, flagged and no-match, hostile input, report export.
+- Not tested: real-GPU frame rate, Safari/Firefox, physical touch devices, print preview output in a real print dialog.
+
+## Open items
+
+- Further chains (TRON, BNB, Solana, Polygon): the ETH account-model pattern should extend.
+- Demo script (2-3 minute walkthrough with click order and talking points) not written.
+- Batch is sequential; parallelising it would cut the 10 s for five addresses.

@@ -24,7 +24,7 @@ If the live API is unreachable, the same pipeline runs against bundled real-tran
 
 ```
 pip install -r backend/requirements.txt
-python -m uvicorn main:app --reload --port 8010 --app-dir backend/app
+python -m uvicorn main:app --port 8010 --app-dir backend/app
 ```
 
 Then open `http://localhost:8010`.
@@ -33,20 +33,20 @@ Then open `http://localhost:8010`.
 
 ```
 backend/app/
-  main.py             FastAPI app + routes
+  main.py              FastAPI app + routes (also serves frontend/ locally)
   bitcoin_client.py    live fetch (Esplora) with offline fixture fallback
   ethereum_client.py   live fetch (Blockscout) with offline fixture fallback
   trace.py             multi-hop BFS trace, chain-agnostic (picks the client)
-  clustering.py       co-spend / counterparty heuristics
-  attribution.py      VASP tag matching + confidence scoring
-  tagdata/            VASP address tag database (built from GraphSense TagPacks)
-  fixtures/           cached real BTC transactions for offline demo
-  fixtures_eth/       cached real ETH transactions for offline demo
-frontend/             single-page UI (vanilla JS + 3d-force-graph, single/batch tabs, BTC/ETH toggle)
+  clustering.py        co-spend / counterparty heuristics
+  attribution.py       VASP tag matching + confidence scoring
+  tagdata/             VASP address tag database (built from GraphSense TagPacks)
+  fixtures/            cached real BTC transactions for offline demo
+  fixtures_eth/        cached real ETH transactions for offline demo
+frontend/              single-page UI: vanilla JS, 3d-force-graph (self-hosted), self-hosted fonts
 api/index.py           Vercel serverless entrypoint (wraps the same FastAPI app)
-vercel.json             Vercel routing: /api/* -> function, everything else -> frontend/
+vercel.json            Vercel routing: /api/* -> function, everything else -> frontend/
 ```
 
 ## Scope for this prototype
 
-Bitcoin and Ethereum, for the internal-round demo. The same pipeline design (fetch → cluster → attribute) extends to further account-based chains (Tron, BNB Chain, Polygon) the same way Ethereum was added — see `PROJECT_CONTEXT.md` for the full roadmap against the problem statement's requirements.
+Bitcoin and Ethereum, for the internal-round demo. The same pipeline design (fetch → cluster → attribute) extends to further account-based chains (Tron, BNB Chain, Polygon) the same way Ethereum was added — see `PROJECT_CONTEXT.md` for architecture, decisions and open items.
