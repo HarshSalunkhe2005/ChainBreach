@@ -103,12 +103,6 @@ def _fetch_fixture(address: str) -> AddressData | None:
     )
 
 
-def list_sample_addresses() -> list[str]:
-    if not FIXTURES_DIR.exists():
-        return []
-    return [p.stem for p in FIXTURES_DIR.glob("*.json")]
-
-
 def get_address_data(
     address: str, force_sample: bool = False, max_txs: int = MAX_TXS
 ) -> AddressData | None:

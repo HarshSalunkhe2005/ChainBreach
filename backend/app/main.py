@@ -2,7 +2,6 @@ import pathlib
 from collections import Counter
 
 from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -10,13 +9,6 @@ import trace as trace_mod
 from attribution import _TAGS, attribute
 
 app = FastAPI(title="ChainBreach Wallet Attribution API")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 FRONTEND_DIR = pathlib.Path(__file__).parent.parent.parent / "frontend"
 

@@ -16,7 +16,7 @@ mode (it would merge thousands of unrelated customers into one cluster),
 and a single output among hundreds in a payout batch isn't meaningful
 counterparty evidence either.
 """
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from bitcoin_client import Tx
 

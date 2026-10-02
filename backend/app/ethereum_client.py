@@ -8,6 +8,7 @@ never fires (there's only ever one vin), leaving just the direct-
 counterparty heuristics, which is the correct behavior for an
 account-based chain.
 """
+import datetime
 import json
 import pathlib
 
@@ -31,8 +32,6 @@ def _slim_from_blockscout(raw_tx: dict) -> Tx | None:
     timestamp = raw_tx.get("timestamp")
     block_time = None
     if timestamp:
-        import datetime
-
         try:
             block_time = int(
                 datetime.datetime.fromisoformat(timestamp.replace("Z", "+00:00")).timestamp()
