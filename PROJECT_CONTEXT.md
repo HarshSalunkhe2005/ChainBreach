@@ -10,10 +10,12 @@ Live: https://chain-breach.vercel.app (Vercel auto-deploys every push to `main`)
 
 The full problem statement also asks for TRON/BNB/Solana/Polygon, SAHYOG portal routing and a broader tool (I4C's CIAT). This prototype covers Bitcoin and Ethereum end to end and presents the rest as roadmap.
 
+Repo formalities: MIT `LICENSE`, `.gitattributes` (LF), README with live link, API table and credits. GitHub About shows the live URL.
+
 ## Architecture
 
 ```
-frontend/   static single page: index.html, style.css, app.js, embers.js, fonts/, vendor/3d-force-graph.min.js
+frontend/   static single page: index.html, style.css, app.js, embers.js, fonts/ (OFL), vendor/3d-force-graph.min.js (MIT)
 backend/app FastAPI: main.py (routes, serves frontend locally), trace.py, clustering.py, attribution.py,
             bitcoin_client.py, ethereum_client.py, tagdata/, fixtures/, fixtures_eth/
 api/        Vercel serverless entrypoint, imports the same FastAPI app
@@ -35,7 +37,7 @@ Warm black, one ember accent, crimson reserved for flagged/illicit content. Big 
 
 Behaviours kept from earlier versions: tabs (single/batch), BTC/ETH toggle, sample chips, drag-and-drop batch upload, shareable `?address=&chain=` links that auto-run, `/` focuses the input, toasts, printable investigation report (graph snapshot needs a render immediately before `toDataURL`). All user/API strings are escaped before going into `innerHTML`.
 
-The previous UI is tagged `v1-original` in git.
+The previous UI lives in git history before commit `5356683`. Only the `main` branch exists.
 
 ## Demo addresses
 
